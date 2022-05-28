@@ -1,6 +1,5 @@
 # Ubuntu Autoinstall Generator
-A script to generate a fully-automated ISO image for installing Ubuntu onto a machine without human interaction. This uses the new autoinstall method
-for Ubuntu 20.04 and newer.
+A script to generate a fully-automated ISO image for installing Ubuntu onto a machine without human interaction. This uses the new autoinstall method for Ubuntu 20.04 and newer.
 
 ## [Looking for the preseed version?](https://github.com/covertsh/ubuntu-preseed-iso-generator)
 
@@ -24,12 +23,14 @@ Tested on a host running Ubuntu 20.04.1 and 22.04.1.
     - ```curl```
     - ```gpg```
     - ```isolinux```
+    - ```fdisk```
+    - ```dd```
 
 ### Usage
 ```
 Usage: ubuntu-autoinstall-generator.sh [-h] [-v] [-a] [-e] [-u user-data-file] [-m meta-data-file] [-k] [-c] [-r] [-s source-iso-file] [-d destination-iso-file]
 
-💁 This script will create fully-automated Ubuntu 20.04 Focal Fossa installation media.
+💁 This script will create fully-automated Ubuntu installation media using preseed.
 
 Available options:
 

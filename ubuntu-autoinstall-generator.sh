@@ -29,7 +29,7 @@ usage() {
         cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [-a] [-e] [-u user-data-file] [-m meta-data-file] [-k] [-c] [-r] [-s source-iso-file] [-d destination-iso-file]
 
-💁 This script will create fully-automated Ubuntu 20.04 Focal Fossa installation media.
+💁 This script will create fully-automated Ubuntu installation media using autoinstall.
 
 Available options:
 
@@ -63,7 +63,7 @@ EOF
 
 function parse_params() {
         # default values of variables set from params
-        ubuntu_version="focal"
+        ubuntu_version="jammy"
         user_data_file=''
         meta_data_file=''
         download_url="https://cdimage.ubuntu.com/ubuntu-server/${ubuntu_version}/daily-live/current"
@@ -161,6 +161,7 @@ log "🔎 Checking for required utilities..."
 [[ ! -x "$(command -v curl)" ]] && die "💥 curl is not installed. On Ubuntu, install the 'curl' package."
 [[ ! -x "$(command -v gpg)" ]] && die "💥 gpg is not installed. On Ubuntu, install the 'gpg' package."
 [[ ! -f "/usr/lib/ISOLINUX/isohdpfx.bin" ]] && die "💥 isolinux is not installed. On Ubuntu, install the 'isolinux' package."
+[[ ! -x "$(command -v fdisk)" ]] && die "💥 fdisk is not installed. On Ubuntu, install the 'fdisk' package."
 log "👍 All required utilities are installed."
 
 if [ ! -f "${source_iso}" ]; then
@@ -226,11 +227,22 @@ chmod -R u+w "$tmpdir"
 rm -rf "$tmpdir/"'[BOOT]'
 log "👍 Extracted to $tmpdir"
 
+if [[ "${ubuntu_version}" =~ ^(jammy)$ ]]; then
+        log "🔧 Extracting EFI images from image..."
+        efi_start=$(fdisk -o Start,Type -l "${source_iso}" | grep -oP '\d+(?=\s+EFI.System)')
+        efi_length=$(fdisk -o Sectors,Type -l "${source_iso}" | grep -oP '\d+(?=\s+EFI.System)')
+        dd if="${source_iso}" bs=512 skip=${efi_start} count=${efi_length} of="${source_iso}-efi.img" status=none
+        dd if="${source_iso}" bs=1 count=432 of="${source_iso}-hybrid.img" status=none
+        log "👍 Extracted EFI images"
+fi
+
 if [ ${use_hwe_kernel} -eq 1 ]; then
         if grep -q "hwe-vmlinuz" "$tmpdir/boot/grub/grub.cfg"; then
                 log "☑️ Destination ISO will use HWE kernel."
-                sed -i -e 's|/casper/vmlinuz|/casper/hwe-vmlinuz|g' "$tmpdir/isolinux/txt.cfg"
-                sed -i -e 's|/casper/initrd|/casper/hwe-initrd|g' "$tmpdir/isolinux/txt.cfg"
+                if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+                        sed -i -e 's|/casper/vmlinuz|/casper/hwe-vmlinuz|g' "$tmpdir/isolinux/txt.cfg"
+                        sed -i -e 's|/casper/initrd|/casper/hwe-initrd|g' "$tmpdir/isolinux/txt.cfg"
+                fi
                 sed -i -e 's|/casper/vmlinuz|/casper/hwe-vmlinuz|g' "$tmpdir/boot/grub/grub.cfg"
                 sed -i -e 's|/casper/initrd|/casper/hwe-initrd|g' "$tmpdir/boot/grub/grub.cfg"
                 sed -i -e 's|/casper/vmlinuz|/casper/hwe-vmlinuz|g' "$tmpdir/boot/grub/loopback.cfg"
@@ -241,10 +253,12 @@ if [ ${use_hwe_kernel} -eq 1 ]; then
 fi
 
 log "🧩 Adding autoinstall parameter to kernel command line..."
-sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/isolinux/txt.cfg"
+if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+        sed -i -r 's/timeout\s+[0-9]+/timeout 1/g' "$tmpdir/isolinux/isolinux.cfg"
+        sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/isolinux/txt.cfg"
+fi
 sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/boot/grub/grub.cfg"
 sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/boot/grub/loopback.cfg"
-sed -i -r 's/timeout\s+[0-9]+/timeout 1/g' "$tmpdir/isolinux/isolinux.cfg"
 log "👍 Added parameter to UEFI and BIOS kernel command lines."
 
 if [ ${all_in_one} -eq 1 ]; then
@@ -256,7 +270,9 @@ if [ ${all_in_one} -eq 1 ]; then
         else
                 touch "$tmpdir/nocloud/meta-data"
         fi
-        sed -i -e 's,---, ds=nocloud;s=/cdrom/nocloud/  ---,g' "$tmpdir/isolinux/txt.cfg"
+        if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+                sed -i -e 's,---, ds=nocloud;s=/cdrom/nocloud/  ---,g' "$tmpdir/isolinux/txt.cfg"
+        fi
         sed -i -e 's,---, ds=nocloud\\\;s=/cdrom/nocloud/  ---,g' "$tmpdir/boot/grub/grub.cfg"
         sed -i -e 's,---, ds=nocloud\\\;s=/cdrom/nocloud/  ---,g' "$tmpdir/boot/grub/loopback.cfg"
         log "👍 Added data and configured kernel command line."
@@ -277,7 +293,46 @@ fi
 
 log "📦 Repackaging extracted files into an ISO image..."
 cd "$tmpdir"
-xorriso -as mkisofs -r -V "ubuntu-autoinstall-$today" -J -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -boot-info-table -input-charset utf-8 -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat -o "${destination_iso}" . &>/dev/null
+if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+        xorriso \
+                -as mkisofs \
+                        -r \
+                        -V "ubuntu-autoinstall-$today" \
+                        -J \
+                        -b isolinux/isolinux.bin \
+                        -c isolinux/boot.cat \
+                        -no-emul-boot \
+                        -boot-load-size 4 \
+                        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+                        -boot-info-table \
+                        -input-charset utf-8 \
+                        -eltorito-alt-boot \
+                        -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat \
+                        -o "${destination_iso}" \
+                        . \
+        &>/dev/null
+elif [[ "${ubuntu_version}" =~ ^(jammy)$ ]]; then
+        xorriso \
+                -as mkisofs \
+                        -r \
+                        -V "ubuntu-autoinstall-$today" \
+                        --grub2-mbr "${source_iso}-hybrid.img" \
+                        -partition_offset 16 --mbr-force-bootable \
+                        -append_partition 2 28732ac11ff8d211ba4b00a0c93ec93b "${source_iso}-efi.img" \
+                        -appended_part_as_gpt \
+                        -iso_mbr_part_type a2a0d0ebe5b9334487c068b6b72699c7 \
+                        -c '/boot.catalog' \
+                        -b '/boot/grub/i386-pc/eltorito.img' \
+                        -no-emul-boot \
+                        -boot-load-size 4 \
+                        -boot-info-table \
+                        --grub2-boot-info \
+                        -eltorito-alt-boot \
+                        -e '--interval:appended_partition_2:::' -no-emul-boot \
+                        -o "${destination_iso}" \
+                        . \
+        &>/dev/null
+fi
 cd "$OLDPWD"
 log "👍 Repackaged into ${destination_iso}"
 
