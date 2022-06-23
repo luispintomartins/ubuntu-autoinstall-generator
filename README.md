@@ -53,6 +53,7 @@ Available options:
 -V, --version           Select the Ubuntu version to choose from (default: ${ubuntu_version}).
 -r, --use-release-iso   Use the current release ISO instead of the daily ISO. The file will be used if it already
                         exists.
+-a, --additional-files  Specifies an optional folder which contains additional files, which will be copied to the iso root
 -s, --source            Source ISO file. By default the latest daily ISO for Ubuntu ${ubuntu_version^} will be downloaded
                         and saved as ${script_dir}/ubuntu-original-$today.iso
                         That file will be used by default if it already exists.

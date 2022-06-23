@@ -70,6 +70,7 @@ function parse_params() {
         download_iso="${ubuntu_version}-live-server-amd64.iso"
         original_iso="ubuntu-original-$today.iso"
         source_iso="${script_dir}/${original_iso}"
+        additional_files_folder=""
         destination_iso="${script_dir}/ubuntu-autoinstall-$today.iso"
         sha_suffix="${today}"
         gpg_verify=1
@@ -98,6 +99,10 @@ function parse_params() {
                         ;;
                 -u | --user-data)
                         user_data_file="${2-}"
+                        shift
+                        ;;
+                -A | --additional-files)
+                        additional_files_folder="${2-}"
                         shift
                         ;;
                 -s | --source)
@@ -287,6 +292,12 @@ if [ ${all_in_one} -eq 1 ]; then
         sed -i -e 's,---, ds=nocloud\\\;s=/cdrom/nocloud/  ---,g' "$tmpdir/boot/grub/grub.cfg"
         sed -i -e 's,---, ds=nocloud\\\;s=/cdrom/nocloud/  ---,g' "$tmpdir/boot/grub/loopback.cfg"
         log "👍 Added data and configured kernel command line."
+fi
+
+if [[ -n "$additional_files_folder" ]]; then
+  log "➕ Adding additional files to the iso image..."
+  cp -R "$additional_files_folder/." "$tmpdir/"
+  log "👍 Added additional files"
 fi
 
 if [ ${md5_checksum} -eq 1 ]; then
