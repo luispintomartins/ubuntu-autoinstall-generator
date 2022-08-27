@@ -49,9 +49,10 @@ Available options:
                         downloaded and saved in ${script_dir}. The Ubuntu signing key will be downloaded and
                         saved in a new keyring in ${script_dir}
 -c, --no-md5            Disable MD5 checksum on boot
+-V, --version           Select the Ubuntu version to choose from (default: ${ubuntu_version}).
 -r, --use-release-iso   Use the current release ISO instead of the daily ISO. The file will be used if it already
                         exists.
--s, --source            Source ISO file. By default the latest daily ISO for Ubuntu 20.04 will be downloaded
+-s, --source            Source ISO file. By default the latest daily ISO for Ubuntu ${ubuntu_version^} will be downloaded
                         and saved as ${script_dir}/ubuntu-original-$today.iso
                         That file will be used by default if it already exists.
 -d, --destination       Destination ISO file. By default ${script_dir}/ubuntu-autoinstall-$today.iso will be
@@ -62,10 +63,11 @@ EOF
 
 function parse_params() {
         # default values of variables set from params
+        ubuntu_version="focal"
         user_data_file=''
         meta_data_file=''
-        download_url="https://cdimage.ubuntu.com/ubuntu-server/focal/daily-live/current"
-        download_iso="focal-live-server-amd64.iso"
+        download_url="https://cdimage.ubuntu.com/ubuntu-server/${ubuntu_version}/daily-live/current"
+        download_iso="${ubuntu_version}-live-server-amd64.iso"
         original_iso="ubuntu-original-$today.iso"
         source_iso="${script_dir}/${original_iso}"
         destination_iso="${script_dir}/ubuntu-autoinstall-$today.iso"
@@ -85,6 +87,10 @@ function parse_params() {
                 -c | --no-md5) md5_checksum=0 ;;
                 -k | --no-verify) gpg_verify=0 ;;
                 -r | --use-release-iso) use_release_iso=1 ;;
+                -V | --version)
+                        ubuntu_version="${2-}"
+                        shift
+                        ;;
                 -u | --user-data)
                         user_data_file="${2-}"
                         shift
@@ -121,9 +127,9 @@ function parse_params() {
         fi
 
         if [ "${use_release_iso}" -eq 1 ]; then
-                download_url="https://releases.ubuntu.com/focal"
+                download_url="https://releases.ubuntu.com/${ubuntu_version}"
                 log "🔎 Checking for current release..."
-                download_iso=$(curl -sSL "${download_url}" | grep -oP 'ubuntu-20\.04\.\d*-live-server-amd64\.iso' | head -n 1)
+                download_iso=$(curl -sSL "${download_url}" | grep -oP 'ubuntu-\d+\.\d+\.\d*.*-server-amd64\.iso' | head -n 1)
                 original_iso="${download_iso}"
                 source_iso="${script_dir}/${download_iso}"
                 current_release=$(echo "${download_iso}" | cut -f2 -d-)
@@ -158,8 +164,9 @@ log "🔎 Checking for required utilities..."
 log "👍 All required utilities are installed."
 
 if [ ! -f "${source_iso}" ]; then
-        log "🌎 Downloading ISO image for Ubuntu 20.04 Focal Fossa..."
-        curl -NsSL "${download_url}/${download_iso}" -o "${source_iso}"
+        log "🌎 Downloading ISO image ${download_iso} for Ubuntu ${ubuntu_version^}..."
+        curl -fNsSL "${download_url}/${download_iso}" -o "${source_iso}" ||
+                die "👿 The download of the ISO ${download_iso} failed."
         log "👍 Downloaded and saved to ${source_iso}"
 else
         log "☑️ Using existing ${source_iso} file."
@@ -173,8 +180,10 @@ fi
 if [ ${gpg_verify} -eq 1 ]; then
         if [ ! -f "${script_dir}/SHA256SUMS-${sha_suffix}" ]; then
                 log "🌎 Downloading SHA256SUMS & SHA256SUMS.gpg files..."
-                curl -NsSL "${download_url}/SHA256SUMS" -o "${script_dir}/SHA256SUMS-${sha_suffix}"
-                curl -NsSL "${download_url}/SHA256SUMS.gpg" -o "${script_dir}/SHA256SUMS-${sha_suffix}.gpg"
+                curl -fNsSL "${download_url}/SHA256SUMS" -o "${script_dir}/SHA256SUMS-${sha_suffix}" ||
+                        die "👿 The download of the SHA256SUMS failed."
+                curl -fNsSL "${download_url}/SHA256SUMS.gpg" -o "${script_dir}/SHA256SUMS-${sha_suffix}.gpg" ||
+                        die "👿 The download of the SHA256SUMS.gpg failed."
         else
                 log "☑️ Using existing SHA256SUMS-${sha_suffix} & SHA256SUMS-${sha_suffix}.gpg files."
         fi
@@ -208,7 +217,11 @@ else
         log "🤞 Skipping verification of source ISO."
 fi
 log "🔧 Extracting ISO image..."
-xorriso -osirrox on -indev "${source_iso}" -extract / "$tmpdir" &>/dev/null
+xorriso \
+        -osirrox on \
+        -indev "${source_iso}" \
+        -extract / "$tmpdir" \
+        &>/dev/null
 chmod -R u+w "$tmpdir"
 rm -rf "$tmpdir/"'[BOOT]'
 log "👍 Extracted to $tmpdir"

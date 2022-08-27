@@ -2,7 +2,7 @@
 A script to generate a fully-automated ISO image for installing Ubuntu onto a machine without human interaction. This uses the new autoinstall method
 for Ubuntu 20.04 and newer.
 
-## [Looking for the desktop version?](https://github.com/covertsh/ubuntu-preseed-iso-generator)
+## [Looking for the preseed version?](https://github.com/covertsh/ubuntu-preseed-iso-generator)
 
 ### Behavior
 Check out the usage information below for arguments. The basic idea is to take an unmodified Ubuntu ISO image, extract it, add some kernel command line parameters, then repack the data into a new ISO. This is needed for full automation because the ```autoinstall``` parameter must be present on the kernel command line, otherwise the installer will wait for a human to confirm. This script automates the process of creating an ISO with this built-in.
@@ -17,7 +17,7 @@ This script can use an existing ISO image or download the latest daily image fro
 By default, the source ISO image is checked for integrity and authenticity using GPG. This can be disabled with ```-k```.
 
 ### Requirements
-Tested on a host running Ubuntu 20.04.1.
+Tested on a host running Ubuntu 20.04.1 and 22.04.1.
 - Utilities required:
     - ```xorriso```
     - ```sed```
@@ -43,17 +43,19 @@ Available options:
                         by early Ubuntu 20.04 release ISOs.
 -u, --user-data         Path to user-data file. Required if using -a
 -m, --meta-data         Path to meta-data file. Will be an empty file if not specified and using -a
--k, --no-verify         Disable GPG verification of the source ISO file. By default SHA256SUMS-<current date> and
-                        SHA256SUMS-<current date>.gpg files in the script directory will be used to verify the authenticity and integrity
+-k, --no-verify         Disable GPG verification of the source ISO file. By default SHA256SUMS-$today and
+                        SHA256SUMS-$today.gpg in ${script_dir} will be used to verify the authenticity and integrity
                         of the source ISO file. If they are not present the latest daily SHA256SUMS will be
-                        downloaded and saved in the script directory. The Ubuntu signing key will be downloaded and
-                        saved in a new keyring in the script directory.
+                        downloaded and saved in ${script_dir}. The Ubuntu signing key will be downloaded and
+                        saved in a new keyring in ${script_dir}
+-c, --no-md5            Disable MD5 checksum on boot
+-V, --version           Select the Ubuntu version to choose from (default: ${ubuntu_version}).
 -r, --use-release-iso   Use the current release ISO instead of the daily ISO. The file will be used if it already
                         exists.
--s, --source            Source ISO file. By default the latest daily ISO for Ubuntu 20.04 will be downloaded
-                        and saved as <script directory>/ubuntu-original-<current date>.iso
+-s, --source            Source ISO file. By default the latest daily ISO for Ubuntu ${ubuntu_version^} will be downloaded
+                        and saved as ${script_dir}/ubuntu-original-$today.iso
                         That file will be used by default if it already exists.
--d, --destination       Destination ISO file. By default <script directory>/ubuntu-autoinstall-<current date>.iso will be
+-d, --destination       Destination ISO file. By default ${script_dir}/ubuntu-autoinstall-$today.iso will be
                         created, overwriting any existing file.
 ```
 
