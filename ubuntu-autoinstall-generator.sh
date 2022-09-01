@@ -77,6 +77,7 @@ function parse_params() {
         use_hwe_kernel=0
         md5_checksum=1
         use_release_iso=0
+        release_type="server"
 
         while :; do
                 case "${1-}" in
@@ -86,7 +87,11 @@ function parse_params() {
                 -e | --use-hwe-kernel) use_hwe_kernel=1 ;;
                 -c | --no-md5) md5_checksum=0 ;;
                 -k | --no-verify) gpg_verify=0 ;;
-                -r | --use-release-iso) use_release_iso=1 ;;
+                -r | --use-release-iso)
+                        use_release_iso=1
+                        release_type="${2-}"
+                        shift
+                        ;;
                 -V | --version)
                         ubuntu_version="${2-}"
                         shift
@@ -129,7 +134,7 @@ function parse_params() {
         if [ "${use_release_iso}" -eq 1 ]; then
                 download_url="https://releases.ubuntu.com/${ubuntu_version}"
                 log "🔎 Checking for current release..."
-                download_iso=$(curl -sSL "${download_url}" | grep -oP 'ubuntu-\d+\.\d+\.\d*.*-server-amd64\.iso' | head -n 1)
+                download_iso=$(curl -sSL "${download_url}" | grep -oP "ubuntu-\d+\.\d+\.\d*.*-${release_type}-amd64\.iso" | head -n 1)
                 original_iso="${download_iso}"
                 source_iso="${script_dir}/${download_iso}"
                 current_release=$(echo "${download_iso}" | cut -f2 -d-)
