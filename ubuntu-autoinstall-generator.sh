@@ -259,6 +259,12 @@ if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
 fi
 sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/boot/grub/grub.cfg"
 sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/boot/grub/loopback.cfg"
+# reduce grub timeout to 1s
+if grep -q "set timeout" "$tmpdir/boot/grub/grub.cfg"; then
+        sed -i -e 's/set timeout=.*/set timeout=1/g' "$tmpdir/boot/grub/grub.cfg"
+else
+        echo "set timeout=1" >> "$tmpdir/boot/grub/grub.cfg"
+fi
 log "👍 Added parameter to UEFI and BIOS kernel command lines."
 
 if [ ${all_in_one} -eq 1 ]; then
