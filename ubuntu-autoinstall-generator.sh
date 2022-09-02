@@ -245,7 +245,7 @@ function patch_iso() {
     if [ ${use_hwe_kernel} -eq 1 ]; then
         if grep -q "hwe-vmlinuz" "$tmpdir/boot/grub/grub.cfg"; then
             log "☑️ Destination ISO will use HWE kernel."
-            if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+            if [[ "${ubuntu_version}" =~ ^(bionic|focal|groovy|hirsute|impish)$ ]]; then
                 sed -i -e 's|/casper/vmlinuz|/casper/hwe-vmlinuz|g' "$tmpdir/isolinux/txt.cfg"
                 sed -i -e 's|/casper/initrd|/casper/hwe-initrd|g' "$tmpdir/isolinux/txt.cfg"
             fi
@@ -259,7 +259,7 @@ function patch_iso() {
     fi
 
     log "🧩 Adding autoinstall parameter to kernel command line..."
-    if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+    if [[ "${ubuntu_version}" =~ ^(bionic|focal|groovy|hirsute|impish)$ ]]; then
         sed -i -r 's/timeout\s+[0-9]+/timeout 1/g' "$tmpdir/isolinux/isolinux.cfg"
         sed -i -e 's/---/ autoinstall  ---/g' "$tmpdir/isolinux/txt.cfg"
     fi
@@ -282,7 +282,7 @@ function patch_iso() {
         else
             touch "$tmpdir/nocloud/meta-data"
         fi
-        if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+        if [[ "${ubuntu_version}" =~ ^(bionic|focal|groovy|hirsute|impish)$ ]]; then
             sed -i -e 's,---, ds=nocloud;s=/cdrom/nocloud/  ---,g' "$tmpdir/isolinux/txt.cfg"
         fi
         sed -i -e 's,---, ds=nocloud\\\;s=/cdrom/nocloud/  ---,g' "$tmpdir/boot/grub/grub.cfg"
@@ -316,8 +316,8 @@ function create_iso_checksums() {
 
 function repackage_iso() {
     log "📦 Repackaging extracted files into an ISO image..."
-    pushd "$tmpdir"
-    if [[ "${ubuntu_version}" =~ ^(focal|groovy|hirsute|impish)$ ]]; then
+    pushd "$tmpdir" &>/dev/null
+    if [[ "${ubuntu_version}" =~ ^(bionic|focal|groovy|hirsute|impish)$ ]]; then
         xorriso \
             -as mkisofs \
                 -r \
@@ -357,7 +357,7 @@ function repackage_iso() {
                 . \
         &>/dev/null
     fi
-    popd
+    popd &>/dev/null
     log "👍 Repackaged into ${destination_iso}"
 }
 
