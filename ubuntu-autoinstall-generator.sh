@@ -180,6 +180,8 @@ function fetch_iso() {
 
 function verify_iso() {
     if [ ${gpg_verify} -eq 1 ]; then
+        install -d -m 0700 "$tmpdir/.gnupg"
+
         if [ ! -f "${script_dir}/SHA256SUMS-${sha_suffix}" ]; then
             log "🌎 Downloading SHA256SUMS & SHA256SUMS.gpg files..."
             curl -fNsSL "${download_url}/SHA256SUMS" -o "${script_dir}/SHA256SUMS-${sha_suffix}" ||
@@ -192,20 +194,31 @@ function verify_iso() {
 
         if [ ! -f "${script_dir}/${ubuntu_gpg_key_id}.keyring" ]; then
             log "🌎 Downloading and saving Ubuntu signing key..."
-            gpg -q --no-default-keyring --keyring "${script_dir}/${ubuntu_gpg_key_id}.keyring" --keyserver "hkp://keyserver.ubuntu.com" --recv-keys "${ubuntu_gpg_key_id}"
+            gpg -q \
+                --homedir "$tmpdir" \
+                --no-default-keyring \
+                --keyring "${script_dir}/${ubuntu_gpg_key_id}.keyring" \
+                --keyserver "hkp://keyserver.ubuntu.com" \
+                --recv-keys "${ubuntu_gpg_key_id}"
             log "👍 Downloaded and saved to ${script_dir}/${ubuntu_gpg_key_id}.keyring"
         else
             log "☑️ Using existing Ubuntu signing key saved in ${script_dir}/${ubuntu_gpg_key_id}.keyring"
         fi
 
         log "🔐 Verifying ${source_iso} integrity and authenticity..."
-        gpg -q --keyring "${script_dir}/${ubuntu_gpg_key_id}.keyring" --verify "${script_dir}/SHA256SUMS-${sha_suffix}.gpg" "${script_dir}/SHA256SUMS-${sha_suffix}" 2>/dev/null
+        gpg -q \
+            --homedir "$tmpdir" \
+            --keyring "${script_dir}/${ubuntu_gpg_key_id}.keyring" \
+            --verify "${script_dir}/SHA256SUMS-${sha_suffix}.gpg" \
+            "${script_dir}/SHA256SUMS-${sha_suffix}" \
+            2>/dev/null
         if [ $? -ne 0 ]; then
             rm -f "${script_dir}/${ubuntu_gpg_key_id}.keyring~"
             die "👿 Verification of SHA256SUMS signature failed."
         fi
 
         rm -f "${script_dir}/${ubuntu_gpg_key_id}.keyring~"
+        rm -rf "$tmpdir/.gnupg"
         digest=$(sha256sum "${source_iso}" | cut -f1 -d ' ')
         set +e
         grep -Fq "$digest" "${script_dir}/SHA256SUMS-${sha_suffix}"
