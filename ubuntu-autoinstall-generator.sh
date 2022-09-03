@@ -235,11 +235,13 @@ function verify_iso() {
 
 function extract_iso() {
     log "🔧 Extracting ISO image..."
+    ls -lad "${source_iso}" "$tmpdir"
     xorriso \
+        -uid "$(id -u)" \
+        -gid "$(id -g)" \
         -osirrox on \
         -indev "${source_iso}" \
-        -extract / "$tmpdir" \
-        &>/dev/null
+        -extract / "$tmpdir"
     chmod -R u+w "$tmpdir"
     rm -rf "$tmpdir/"'[BOOT]'
     log "👍 Extracted to $tmpdir"
